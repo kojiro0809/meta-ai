@@ -55,7 +55,7 @@ with st.sidebar:
     st.markdown("---")
     st.caption("※ 過去データに基づく統計的シミュレーションです。")
 
-# --- データ取得と整形（ここを修正） ---
+# --- データ取得と整形 ---
 START = "2018-01-01"
 TODAY = date.today().strftime("%Y-%m-%d")
 
@@ -64,19 +64,14 @@ def load_data(ticker):
     # データをダウンロード
     data = yf.download(ticker, start=START, end=TODAY, progress=False)
     
-    # 【修正ポイント】データが空の場合はエラー
     if data.empty:
         return None
 
-    # 【修正ポイント】MultiIndex（多層カラム）の処理
-    # 最近のyfinanceはカラムが ('Close', 'BTC-USD') のようになる場合があるため、それを平坦化
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = [col[0] for col in data.columns]
 
     data.reset_index(inplace=True)
     
-    # Prophet用にカラム名が正しいか確認
-    # Dateカラムなどがindexに入っている場合や名前が違う場合に対応
     if 'Date' not in data.columns and 'Datetime' not in data.columns:
         # indexが日付の場合
         data.reset_index(inplace=True)
@@ -123,8 +118,19 @@ try:
         df_train['ds'] = pd.to_datetime(df_train['ds']).dt.tz_localize(None)
 
         # モデル作成
-        m = Prophet()
+        # 金融データ特有のノイズに対する過学習（オーバーフィッティング）対策 ---
+    # 仮想通貨は土日も動くためweekly_seasonalityを有効化。日次の細かすぎるノイズは無視する設定。
+    try:
+        m = Prophet(
+            changepoint_prior_scale=0.05,  # トレンド変化の柔軟性を適度に抑え、過学習を防ぐ
+            yearly_seasonality=True,       # 年単位の周期性（夏枯れ相場など）を考慮
+            weekly_seasonality=True,       # 曜日ごとの周期性を考慮
+            daily_seasonality=False        # デイトレードではないため日次のノイズは無視
+        )
         m.fit(df_train)
+    except Exception as e:
+        st.error(f"⚠️ AIモデルの学習中にエラーが発生しました。データを確認してください: {str(e)}")
+        st.stop()
         
         # 未来の枠を作成
         future = m.make_future_dataframe(periods=years * 365)
