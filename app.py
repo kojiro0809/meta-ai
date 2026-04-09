@@ -132,16 +132,16 @@ try:
         st.error(f"⚠️ AIモデルの学習中にエラーが発生しました。データを確認してください: {str(e)}")
         st.stop()
         
-        # 未来の枠を作成
-        future = m.make_future_dataframe(periods=years * 365)
-        forecast = m.predict(future)
+    # 未来の枠を作成
+    future = m.make_future_dataframe(periods=years * 365)
+    forecast = m.predict(future)
 
-        # 予測値の取得
-        future_price = forecast['yhat'].iloc[-1]
-        future_price_upper = forecast['yhat_upper'].iloc[-1]
-        future_price_lower = forecast['yhat_lower'].iloc[-1]
+    # 予測値の取得
+    future_price = forecast['yhat'].iloc[-1]
+    future_price_upper = forecast['yhat_upper'].iloc[-1]
+    future_price_lower = forecast['yhat_lower'].iloc[-1]
         
-        roi = ((future_price - latest_close) / latest_close) * 100
+    roi = ((future_price - latest_close) / latest_close) * 100
 
     # --- 結果表示 UI ---
     st.subheader(f"📊 {selected_name if not use_manual else ticker} の現状")
